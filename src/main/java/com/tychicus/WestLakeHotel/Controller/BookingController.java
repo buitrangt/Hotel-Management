@@ -11,10 +11,8 @@ import com.tychicus.WestLakeHotel.Service.IRoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.awt.print.Book;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,14 +61,28 @@ public class BookingController {
     @PostMapping("/room/{roomId}/booking")
     public ResponseEntity<?> saveBooking(@PathVariable Long roomId, @RequestBody BookedRoom bookingRequest) {
         try {
+            System.out.println("Received booking request for room ID: " + roomId);
+            System.out.println("Guest name: " + bookingRequest.getGuestFullName());
+            System.out.println("Check-in date: " + bookingRequest.getCheckInDate());
+            System.out.println("Check-out date: " + bookingRequest.getCheckOutDate());
+            System.out.println("Adults: " + bookingRequest.getNumOfAdults());
+            System.out.println("Children: " + bookingRequest.getNumOfChildren());
+            
             String confirmationCode = bookingService.saveBooking(roomId, bookingRequest);
+            
+            System.out.println("Booking successful with code: " + confirmationCode);
             return ResponseEntity.ok("Room booked successfully! your booking confirmation code is: " + confirmationCode);
         } catch (InvalidBookingRequestException e) {
+            System.out.println("Booking failed: " + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + e.getMessage());
         }
     }
 
-    @DeleteMapping("booking/{bookingId}/delete")
+    @DeleteMapping("/booking/{bookingId}/delete")
     public void cancelBooking(@PathVariable Long bookingId) {
         bookingService.cancelBooking(bookingId);
     }
@@ -78,6 +90,16 @@ public class BookingController {
     private BookingResponse getBookingResponse(BookedRoom booking) {
         Room theRoom = roomService.getRoomById(booking.getRoom().getId()).get();
         RoomResponse room = new RoomResponse(theRoom.getId(), theRoom.getRoomType(), theRoom.getRoomPrice());
-        return new BookingResponse(booking.getBookingId(), booking.getCheckInDate(), booking.getCheckOutDate(), booking.getGuestFullName(), booking.getGuestEmail(), booking.getNumOfAdults(), booking.getNumOfChildren(), booking.getTotalNumOfGuest(), booking.getBookingConfirmationCode(), room);
+        return new BookingResponse(
+                booking.getBookingId(), 
+                booking.getCheckInDate(), 
+                booking.getCheckOutDate(), 
+                booking.getGuestFullName(), 
+                booking.getGuestEmail(), 
+                booking.getNumOfAdults(), 
+                booking.getNumOfChildren(), 
+                booking.getTotalNumOfGuest(), 
+                booking.getBookingConfirmationCode(), 
+                room);
     }
 }

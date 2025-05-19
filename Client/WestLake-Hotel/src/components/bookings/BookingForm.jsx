@@ -18,8 +18,8 @@ const BookingForm = () => {
     guestEmail: currentUser,
     checkInDate: "",
     checkOutDate: "",
-    numOfAdults: "",
-    numOfChildren: "",
+    numOfAdults: 1,
+    numOfChildren: 0,
   });
 
   const { roomId } = useParams();
@@ -27,18 +27,23 @@ const BookingForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    console.log(roomPrice);
-    setBooking({ ...booking, [name]: value });
+    // Xử lý đặc biệt cho số
+    if (name === "numOfAdults" || name === "numOfChildren") {
+      setBooking({ ...booking, [name]: parseInt(value) || 0 });
+    } else {
+      setBooking({ ...booking, [name]: value });
+    }
     setErrorMessage("");
   };
 
   const getRoomPriceById = async (roomId) => {
     try {
       const response = await getRoomById(roomId);
-      console.log(response.roomPrice);
+      console.log("Room details:", response);
       setRoomPrice(response.roomPrice);
     } catch (error) {
-      throw new Error(error);
+      console.error("Error fetching room:", error);
+      setErrorMessage("Could not fetch room details: " + error.message);
     }
   };
 
@@ -55,16 +60,16 @@ const BookingForm = () => {
   };
 
   const isGuestCountValid = () => {
-    const adultCount = parseInt(booking.numOfAdults);
-    const childrenCount = parseInt(booking.numOfChildren);
+    const adultCount = parseInt(booking.numOfAdults) || 0;
+    const childrenCount = parseInt(booking.numOfChildren) || 0;
     const totalCount = adultCount + childrenCount;
     return totalCount >= 1 && adultCount >= 1;
   };
 
   const isCheckOutDateValid = () => {
-    if (
-      !moment(booking.checkOutDate).isSameOrAfter(moment(booking.checkInDate))
-    ) {
+    if (!booking.checkInDate || !booking.checkOutDate) return false;
+    
+    if (!moment(booking.checkOutDate).isAfter(moment(booking.checkInDate))) {
       setErrorMessage("Check-out date must be after check-in date");
       return false;
     } else {
@@ -91,12 +96,25 @@ const BookingForm = () => {
 
   const handleFormSubmit = async () => {
     try {
-      const confirmationCode = await bookRoom(roomId, booking);
+      console.log("Preparing to submit booking for room ID:", roomId);
+      
+      // Đảm bảo dữ liệu được định dạng đúng trước khi gửi
+      const bookingData = {
+        ...booking,
+        numOfAdults: parseInt(booking.numOfAdults) || 1,
+        numOfChildren: parseInt(booking.numOfChildren) || 0
+      };
+      
+      console.log("Sending booking data:", bookingData);
+      
+      const confirmationCode = await bookRoom(roomId, bookingData);
+      console.log("Booking successful! Confirmation code:", confirmationCode);
+      
       setIsSubmitted(true);
       navigate("/booking-success", { state: { message: confirmationCode } });
     } catch (error) {
+      console.error("Error during booking:", error);
       const errorMessage = error.message;
-      console.log(errorMessage);
       navigate("/booking-success", { state: { error: errorMessage } });
     }
   };
@@ -111,7 +129,7 @@ const BookingForm = () => {
 
               <Form noValidate validated={validated} onSubmit={handleSubmit}>
                 <Form.Group>
-                  <Form.Label htmlFor="guestName" className="hotel-color">
+                  <Form.Label htmlFor="guestFullName" className="hotel-color">
                     Fullname
                   </Form.Label>
                   <FormControl
@@ -157,7 +175,6 @@ const BookingForm = () => {
                         type="date"
                         id="checkInDate"
                         name="checkInDate"
-                        min={moment().format("MMM Do, YYYY")}
                         value={booking.checkInDate}
                         placeholder="check-in date"
                         onChange={handleInputChange}
@@ -179,7 +196,6 @@ const BookingForm = () => {
                         type="date"
                         id="checkOutDate"
                         name="checkOutDate"
-                        min={moment().format("MMM Do, YYYY")}
                         value={booking.checkOutDate}
                         placeholder="check-out date"
                         onChange={handleInputChange}
@@ -231,6 +247,7 @@ const BookingForm = () => {
                         name="numOfChildren"
                         value={booking.numOfChildren}
                         placeholder="0"
+                        min={0}
                         onChange={handleInputChange}
                       />
                       <Form.Control.Feedback type="invalid">
